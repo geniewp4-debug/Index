@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Interroga AI" />
+<meta name="theme-color" content="#0a0a0f" />
+<title>Interroga le AI</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --glass: rgba(255,255,255,.09);
+    --stroke: rgba(255,255,255,.14);
+    --text: #f2f3f7;
+    --muted: rgba(235,238,245,.55);
+    --accent: #0a84ff;
+    --ok: #30d158;
+    --err: #ff453a;
+    --radius: 26px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { height: 100%; }
+  body {
+    margin: 0; min-height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+  }
+
+  .bg-orbs { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
+  .orb { position: absolute; border-radius: 50%; filter: blur(90px); opacity: .55; }
+  .orb.b1 { width: 340px; height: 340px; top: -110px; left: -90px;
+            background: radial-gradient(circle, #2b5cff 0%, transparent 70%); }
+  .orb.b2 { width: 320px; height: 320px; top: 26%; right: -130px;
+            background: radial-gradient(circle, #a63de8 0%, transparent 70%); }
+  .orb.b3 { width: 300px; height: 300px; bottom: -120px; left: 12%;
+            background: radial-gradient(circle, #0aa5a0 0%, transparent 70%); }
+
+  .glass {
+    background: var(--glass);
+    -webkit-backdrop-filter: blur(28px) saturate(170%);
+    backdrop-filter: blur(28px) saturate(170%);
+    border: 1px solid var(--stroke);
+    border-radius: var(--radius);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 10px 34px rgba(0,0,0,.38);
+  }
+
+  main {
+    max-width: 640px; margin: 0 auto;
+    padding: calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 30px);
+  }
+
+  header { display: flex; align-items: center; justify-content: space-between;
+           padding: 6px 2px 14px; }
+  .large-title { font-size: 32px; font-weight: 800; letter-spacing: -.6px; }
+  .large-title span {
+    background: linear-gradient(90deg, #6fa8ff, #c084fc);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .subtitle { color: var(--muted); font-size: 14px; margin-top: 2px; }
+  .icon-btn {
+    width: 44px; height: 44px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; cursor: pointer; flex-shrink: 0;
+    background: var(--glass);
+    -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+    border: 1px solid var(--stroke);
+  }
+  .icon-btn:active { transform: scale(.92); }
+
+  .card { padding: 16px; margin-bottom: 16px; }
+  textarea {
+    width: 100%;
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.1);
+    color: var(--text);
+    border-radius: 18px;
+    padding: 13px 14px;
+    font-size: 16px; font-family: inherit;
+    min-height: 92px; resize: vertical;
+    -webkit-appearance: none;
+  }
+  textarea:focus { outline: none; border-color: rgba(10,132,255,.65); }
+  textarea::placeholder { color: var(--muted); }
+
+  .prompt-footer { display: flex; align-items: center; justify-content: space-between;
+                   gap: 10px; margin-top: 12px; }
+  .status-text { color: var(--muted); font-size: 13px; min-width: 0; }
+  #send {
+    background: linear-gradient(180deg, #2a9cff, #0a6fe0);
+    color: #fff; border: none;
+    padding: 12px 24px;
+    font-size: 16px; font-weight: 700;
+    border-radius: 999px; cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 6px 18px rgba(10,132,255,.35);
+    letter-spacing: .2px;
+  }
+  #send:active { transform: scale(.96); }
+  #send:disabled { opacity: .45; }
+
+  .section-label {
+    font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--muted); margin: 22px 2px 10px;
+  }
+
+  /* ---- card risposta / legale ---- */
+  .answer-card { padding: 15px 16px; margin-bottom: 14px; }
+  .ans-head { display: flex; align-items: center; gap: 11px; margin-bottom: 10px; }
+  .avatar {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .3px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.4);
+  }
+  .ans-title { flex: 1; min-width: 0; }
+  .ans-name { font-size: 15px; font-weight: 700; }
+  .ans-model { font-size: 12px; color: var(--muted);
+               overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .badge {
+    font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+    background: rgba(255,255,255,.12); color: var(--muted); flex-shrink: 0;
+  }
+  .badge.ok { background: rgba(48,209,88,.16); color: var(--ok); }
+  .badge.err { background: rgba(255,69,58,.16); color: var(--err); }
+  .ans-body { font-size: 15px; line-height: 1.55; overflow-wrap: anywhere; }
+  .ans-body code { background: rgba(255,255,255,.09); padding: 1px 5px;
+                   border-radius: 6px; font-size: 13px; }
+  .ans-body pre { background: rgba(0,0,0,.35); border: 1px solid var(--stroke);
+                  border-radius: 12px; padding: 10px; overflow-x: auto; }
+  .ans-body.error { color: var(--err); font-size: 13px; }
+  .spinner {
+    width: 24px; height: 24px; margin: 14px auto;
+    border: 3px solid rgba(255,255,255,.15); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty { text-align: center; color: var(--muted); font-size: 14px; padding: 30px 10px; }
+
+  /* ---- sezione AI legali ---- */
+  .legal-card { padding: 16px; margin-bottom: 14px; }
+  .legal-actions { display: flex; gap: 10px; margin: 4px 0 10px; }
+  .legal-btn {
+    flex: 1; padding: 11px 10px;
+    background: rgba(255,255,255,.12);
+    border: 1px solid var(--stroke);
+    color: var(--text);
+    font-size: 14px; font-weight: 600;
+    border-radius: 999px; cursor: pointer;
+  }
+  .legal-btn.primary { background: linear-gradient(180deg, #2a9cff, #0a6fe0); border: none; }
+  .legal-btn:active { transform: scale(.96); }
+  .legal-note { font-size: 12px; color: var(--muted); line-height: 1.4; margin: 0 0 10px; }
+  .legal-answer { min-height: 64px; font-size: 14px; }
+  .saved-note { font-size: 11px; color: var(--ok); margin-top: 6px; min-height: 14px; }
+
+  /* ---- sheet impostazioni ---- */
+  #scrim { position: fixed; inset: 0; background: rgba(0,0,0,.45);
+           opacity: 0; pointer-events: none; transition: opacity .35s; z-index: 40; }
+  #scrim.open { opacity: 1; pointer-events: auto; }
+  #sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+    max-height: 86vh; overflow-y: auto;
+    border-radius: 34px 34px 0 0;
+    transform: translateY(105%);
+    transition: transform .45s cubic-bezier(.32,.72,0,1);
+    background: rgba(28,30,40,.82);
+    -webkit-backdrop-filter: blur(34px) saturate(180%);
+    backdrop-filter: blur(34px) saturate(180%);
+    border: 1px solid var(--stroke); border-bottom: none;
+    padding: 8px 18px calc(env(safe-area-inset-bottom) + 24px);
+  }
+  #sheet.open { transform: translateY(0); }
+  .grabber { width: 38px; height: 5px; border-radius: 999px;
+             background: rgba(255,255,255,.3); margin: 4px auto 12px; }
+  .sheet-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .sheet-title h2 { font-size: 21px; font-weight: 800; margin: 0; }
+  .done-btn { color: var(--accent); font-size: 16px; font-weight: 600;
+              background: none; border: none; cursor: pointer; }
+  .sheet-hint { color: var(--muted); font-size: 13px; margin: 0 0 8px; }
+
+  .prov { display: grid; grid-template-columns: 40px 1fr; gap: 12px;
+          padding: 13px 0; border-top: 1px solid rgba(255,255,255,.09); }
+  .prov .avatar { width: 40px; height: 40px; }
+  .prov-name { font-size: 15px; font-weight: 700; }
+  .prov-name a { font-size: 12px; font-weight: 500; color: var(--accent);
+                 text-decoration: none; margin-left: 6px; }
+  .prov input {
+    width: 100%; margin-top: 7px;
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.1);
+    color: var(--text); border-radius: 12px;
+    padding: 10px 12px; font-size: 15px;
+    -webkit-appearance: none;
+  }
+  .prov input:focus { outline: none; border-color: rgba(10,132,255,.65); }
+  .prov input::placeholder { color: rgba(235,238,245,.35); }
+  .key-ok { font-size: 11px; color: var(--ok); font-weight: 600; margin-left: 6px; }
+
+  .switch-row { display: flex; align-items: center; justify-content: space-between;
+                padding: 14px 0; border-top: 1px solid rgba(255,255,255,.09); }
+  .switch { position: relative; width: 51px; height: 31px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .track { position: absolute; inset: 0; border-radius: 999px;
+           background: rgba(255,255,255,.18); transition: .25s; cursor: pointer; }
+  .track::before {
+    content: ""; position: absolute; width: 27px; height: 27px; border-radius: 50%;
+    background: #fff; top: 2px; left: 2px; transition: .25s;
+    box-shadow: 0 2px 5px rgba(0,0,0,.3);
+  }
+  .switch input:checked + .track { background: #30d158; }
+  .switch input:checked + .track::before { transform: translateX(20px); }
+</style>
+</head>
+<body>
+
+<div class="bg-orbs"><div class="orb b1"></div><div class="orb b2"></div><div class="orb b3"></div></div>
+
+<main>
+  <header>
+    <div>
+      <div class="large-title">Interroga <span>le AI</span></div>
+      <div class="subtitle">AI generaliste + AI legali, a confronto</div>
+    </div>
+    <button class="icon-btn glass" id="open-keys" aria-label="Chiavi API">⚙️</button>
+  </header>
+
+  <section class="glass card">
+    <textarea id="prompt" placeholder="Scrivi qui la tua domanda… (Ctrl+Invio per inviare)"></textarea>
+    <div class="prompt-footer">
+      <span class="status-text" id="status"></span>
+      <button id="send">Interroga ↑</button>
+    </div>
+  </section>
+
+  <!-- AI legali: passaggio rapido verso Lexroom e Simpliciter -->
+  <div class="section-label">⚖️ AI legali</div>
+  <section id="legal"></section>
+
+  <!-- AI generaliste -->
+  <div class="section-label">🤖 AI generaliste</div>
+  <section id="results"></section>
+  <p class="empty glass" id="empty">
+    💬 Fai una domanda: le AI configurate risponderanno qui sotto.
+  </p>
+</main>
+
+<!-- sheet chiavi -->
+<div id="scrim"></div>
+<section id="sheet">
+  <div class="grabber"></div>
+  <div class="sheet-title">
+    <h2>Chiavi API</h2>
+    <button class="done-btn" id="close-keys">Fine</button>
+  </div>
+  <p class="sheet-hint">
+    Ottieni le chiavi gratuite dai link, incollale qui e resteranno solo nel tuo
+    iPhone (localStorage). Lascia vuoto ciò che non vuoi usare.
+  </p>
+  <div id="providers"></div>
+  <div class="switch-row">
+    <div>
+      <div class="prov-name">Ollama (in locale)</div>
+      <div class="sheet-hint">Nessuna chiave: usa il server su <code>localhost:11434</code>
+        (avvialo con <code>OLLAMA_ORIGINS="*"</code>)</div>
+    </div>
+    <label class="switch">
+      <input type="checkbox" id="use-ollama" />
+      <span class="track"></span>
+    </label>
+  </div>
+  <div class="switch-row" style="border-bottom: none;">
+    <div>
+      <div class="prov-name">⚖️ Lexroom & Simpliciter</div>
+      <div class="sheet-hint">Le AI legali si usano con il tuo account sul loro sito:
+        la domanda viene copiata e tu la incolli. Simpliciter si può anche collegare
+        via MCP a client come Le Chat (connettore "Simpliciter", URL
+        <code>https://simpliciter.ai/mcp</code>).</div>
+    </div>
+  </div>
+</section>
+
+<script>
+"use strict";
+
+/* ------------------------------------------------------------------ */
+/* AI generaliste                                                     */
+/* ------------------------------------------------------------------ */
+
+const PROVIDERS = [
+  { id:"groq",        name:"Groq",           ini:"GQ", color:"linear-gradient(135deg,#ff8a00,#ffcf5c)", model:"llama-3.3-70b-versatile",                keyUrl:"https://console.groq.com/keys",           ph:"gsk_…",   kind:"openai", url:"https://api.groq.com/openai/v1/chat/completions" },
+  { id:"mistral",     name:"Mistral",        ini:"MS", color:"linear-gradient(135deg,#ff7000,#ffd166)", model:"mistral-small-latest",                   keyUrl:"https://console.mistral.ai/",              ph:"…",       kind:"openai", url:"https://api.mistral.ai/v1/chat/completions" },
+  { id:"gemini",      name:"Google Gemini",  ini:"G",  color:"linear-gradient(135deg,#4285f4,#9b72cb)", model:"gemini-2.0-flash",                        keyUrl:"https://aistudio.google.com/apikey",       ph:"AIza…",   kind:"gemini" },
+  { id:"openrouter",  name:"OpenRouter",     ini:"OR", color:"linear-gradient(135deg,#5b6b8c,#9aa7c7)", model:"meta-llama/llama-3.3-70b-instruct:free",  keyUrl:"https://openrouter.ai/keys",               ph:"sk-or-…", kind:"openai", url:"https://openrouter.ai/api/v1/chat/completions" },
+  { id:"huggingface", name:"Hugging Face",   ini:"HF", color:"linear-gradient(135deg,#ffd21e,#ff9d00)", model:"meta-llama/Llama-3.1-8B-Instruct",        keyUrl:"https://huggingface.co/settings/tokens",  ph:"hf_…",    kind:"openai", url:"https://router.huggingface.co/v1/chat/completions" },
+  { id:"cohere",      name:"Cohere",         ini:"C",  color:"linear-gradient(135deg,#d95970,#8d5db9)", model:"command-r-plus-08-2024",                 keyUrl:"https://dashboard.cohere.com/api-keys",   ph:"…",       kind:"cohere" },
+  { id:"ollama",      name:"Ollama (locale)",ini:"OL", color:"linear-gradient(135deg,#cfd5e3,#8b93a7)", model:"llama3.2",                                keyUrl:"https://ollama.com",                      ph:"",        kind:"ollama", local:true }
+];
+
+/* ------------------------------------------------------------------ */
+/* AI legali: Lexroom e Simpliciter                                    */
+/* ------------------------------------------------------------------ */
+
+const LEGAL = [
+  { id:"lexroom", name:"Lexroom.ai", ini:"LR",
+    color:"linear-gradient(135deg,#1e6fd9,#4aa3ff)",
+    url:"https://app.lexroom.ai/it",
+    note:"Nessuna API pubblica: apri l'app con il tuo account, incolla la domanda (già copiata) e confronta qui la risposta." },
+  { id:"simpliciter", name:"Simpliciter.ai", ini:"SP",
+    color:"linear-gradient(135deg,#8a5cf6,#c77dff)",
+    url:"https://simpliciter.ai/",
+    note:"Apri la web app con il tuo account e incolla la domanda. La via ufficiale per programmi è il server MCP (OAuth): https://simpliciter.ai/mcp" }
+];
+
+const LS_KEY    = id => "mai_key_" + id;
+const LS_MODEL  = id => "mai_model_" + id;
+const LS_LEGAL  = id => "mai_legal_answer_" + id;
+
+/* ------------------------------------------------------------------ */
+/* Foglio impostazioni (chiavi AI generaliste)                          */
+/* ------------------------------------------------------------------ */
+
+const providersEl = document.getElementById("providers");
+PROVIDERS.filter(p => !p.local).forEach(p => {
+  const row = document.createElement("div");
+  row.className = "prov";
+  row.innerHTML = `
+    <div class="avatar" style="background:${p.color}">${p.ini}</div>
+    <div>
+      <span class="prov-name">${p.name}</span>
+      <a href="${p.keyUrl}" target="_blank" rel="noopener">chiave gratis ↗</a>
+      <span class="key-ok" data-ok="${p.id}" hidden>✓ salvata</span>
+      <input type="password" placeholder="Chiave API (${p.ph})" data-key="${p.id}" />
+      <input type="text" placeholder="Modello: ${p.model}" data-model="${p.id}" />
+    </div>`;
+  providersEl.appendChild(row);
+});
+
+function refreshKeyMarks() {
+  document.querySelectorAll("[data-ok]").forEach(s => {
+    s.hidden = !(localStorage.getItem(LS_KEY(s.dataset.ok)) || "").trim();
+  });
+}
+
+document.querySelectorAll("[data-key]").forEach(inp => {
+  inp.value = localStorage.getItem(LS_KEY(inp.dataset.key)) || "";
+  inp.addEventListener("change", () => {
+    localStorage.setItem(LS_KEY(inp.dataset.key), inp.value.trim());
+    refreshKeyMarks();
+  });
+});
+document.querySelectorAll("[data-model]").forEach(inp => {
+  inp.value = localStorage.getItem(LS_MODEL(inp.dataset.model)) || "";
+  inp.addEventListener("change", () =>
+    localStorage.setItem(LS_MODEL(inp.dataset.model), inp.value.trim()));
+});
+refreshKeyMarks();
+
+const useOllamaEl = document.getElementById("use-ollama");
+useOllamaEl.checked = localStorage.getItem("mai_use_ollama") === "1";
+useOllamaEl.addEventListener("change", () =>
+  localStorage.setItem("mai_use_ollama", useOllamaEl.checked ? "1" : "0"));
+
+const sheet = document.getElementById("sheet");
+const scrim = document.getElementById("scrim");
+document.getElementById("open-keys").addEventListener("click", () => {
+  sheet.classList.add("open"); scrim.classList.add("open");
+});
+const closeSheet = () => { sheet.classList.remove("open"); scrim.classList.remove("open"); };
+document.getElementById("close-keys").addEventListener("click", closeSheet);
+scrim.addEventListener("click", closeSheet);
+
+/* ------------------------------------------------------------------ */
+/* Carte AI legali: copia domanda + apri + incolla risposta             */
+/* ------------------------------------------------------------------ */
+
+const legalEl = document.getElementById("legal");
+
+async function copyPrompt(statusCb) {
+  const text = document.getElementById("prompt").value.trim();
+  if (!text) { statusCb("Scrivi prima la domanda ✍️"); return false; }
+  try {
+    await navigator.clipboard.writeText(text);
+    statusCb("Domanda copiata negli appunti ✓");
+    return true;
+  } catch (e) {
+    // fallback per contesti senza Clipboard API
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      document.execCommand("copy");
+      ta.remove();
+      statusCb("Domanda copiata ✓");
+      return true;
+    } catch (e2) {
+      statusCb("Copia non riuscita: seleziona la domanda a mano");
+      return false;
+    }
+  }
+}
+
+LEGAL.forEach(p => {
+  const card = document.createElement("div");
+  card.className = "glass legal-card";
+  card.innerHTML = `
+    <div class="ans-head">
+      <div class="avatar" style="background:${p.color}">${p.ini}</div>
+      <div class="ans-title">
+        <div class="ans-name">${p.name}</div>
+        <div class="ans-model">${p.note}</div>
+      </div>
+      <span class="badge">web app</span>
+    </div>
+    <div class="legal-actions">
+      <button class="legal-btn" data-copy="${p.id}">📋 Copia domanda</button>
+      <button class="legal-btn primary" data-open="${p.id}">Apri ↗</button>
+    </div>
+    <textarea class="legal-answer" data-answer="${p.id}"
+      placeholder="Incolla qui la risposta di ${p.name} per confrontarla…"></textarea>
+    <div class="saved-note" data-saved="${p.id}"></div>`;
+  legalEl.appendChild(card);
+});
+
+const statusEl = document.getElementById("status");
+
+function flashSaved(id) {
+  const note = document.querySelector(`[data-saved="${id}"]`);
+  note.textContent = "salvata sul tuo iPhone ✓";
+}
+
+document.querySelectorAll("[data-copy]").forEach(btn => {
+  btn.addEventListener("click", () => copyPrompt(m => statusEl.textContent = m));
+});
+document.querySelectorAll("[data-open]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const p = LEGAL.find(x => x.id === btn.dataset.open);
+    copyPrompt(m => statusEl.textContent = m).then(() => {
+      window.open(p.url, "_blank", "noopener");
+    });
+  });
+});
+document.querySelectorAll("[data-answer]").forEach(ta => {
+  ta.value = localStorage.getItem(LS_LEGAL(ta.dataset.answer)) || "";
+  if (ta.value.trim()) flashSaved(ta.dataset.answer);
+  ta.addEventListener("input", () => {
+    localStorage.setItem(LS_LEGAL(ta.dataset.answer), ta.value);
+    flashSaved(ta.dataset.answer);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Chiamate alle AI generaliste                                        */
+/* ------------------------------------------------------------------ */
+
+function modelOf(p) {
+  return (localStorage.getItem(LS_MODEL(p.id)) || p.model).trim() || p.model;
+}
+function apiKey(p) { return (localStorage.getItem(LS_KEY(p.id)) || "").trim(); }
+
+async function post(url, headers, body) {
+  const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error("HTTP " + res.status + " — " + (await res.text()).slice(0, 300));
+  return res.json();
+}
+
+async function ask(p, prompt) {
+  if (p.kind === "ollama") {
+    const b = await post("http://localhost:11434/api/chat",
+      { "Content-Type": "application/json" },
+      { model: modelOf(p), messages: [{ role: "user", content: prompt }], stream: false });
+    return b.message.content.trim();
+  }
+  const key = apiKey(p);
+  if (!key) throw new Error("chiave API mancante");
+  if (p.kind === "openai") {
+    const b = await post(p.url,
+      { "Content-Type": "application/json", "Authorization": "Bearer " + key },
+      { model: modelOf(p), messages: [{ role: "user", content: prompt }] });
+    return b.choices[0].message.content.trim();
+  }
+  if (p.kind === "gemini") {
+    const url = "https://generativelanguage.googleapis.com/v1beta/models/" +
+                encodeURIComponent(modelOf(p)) + ":generateContent";
+    const b = await post(url,
+      { "Content-Type": "application/json", "x-goog-api-key": key },
+      { contents: [{ parts: [{ text: prompt }] }] });
+    return b.candidates[0].content.parts[0].text.trim();
+  }
+  if (p.kind === "cohere") {
+    const b = await post("https://api.cohere.ai/v2/chat",
+      { "Content-Type": "application/json", "Authorization": "Bearer " + key },
+      { model: modelOf(p), messages: [{ role: "user", content: prompt }] });
+    return b.message.content[0].text.trim();
+  }
+  throw new Error("provider sconosciuto");
+}
+
+/* ------------------------------------------------------------------ */
+/* Rendering risposte                                                  */
+/* ------------------------------------------------------------------ */
+
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function renderAnswer(text) {
+  let h = escapeHtml(text);
+  h = h.replace(/```([\s\S]*?)```/g, (_, c) => "<pre><code>" + c.trim() + "</code></pre>");
+  h = h.replace(/`([^`]+)`/g, "<code>$1</code>");
+  h = h.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  h = h.replace(/\n/g, "<br>");
+  return h;
+}
+
+const resultsEl = document.getElementById("results");
+const emptyEl   = document.getElementById("empty");
+const sendBtn   = document.getElementById("send");
+const promptEl  = document.getElementById("prompt");
+
+function newCard(p) {
+  const card = document.createElement("div");
+  card.className = "glass answer-card";
+  card.innerHTML = `
+    <div class="ans-head">
+      <div class="avatar" style="background:${p.color}">${p.ini}</div>
+      <div class="ans-title">
+        <div class="ans-name">${p.name}</div>
+        <div class="ans-model">${escapeHtml(modelOf(p))}</div>
+      </div>
+      <span class="badge">…</span>
+    </div>
+    <div class="ans-body"><div class="spinner"></div></div>`;
+  resultsEl.appendChild(card);
+  return {
+    badge: card.querySelector(".badge"),
+    body:  card.querySelector(".ans-body")
+  };
+}
+
+function fillCard(slot, ok, payload, ms) {
+  slot.badge.textContent = ok ? "✓ " + ms + " ms" : "errore";
+  slot.badge.className = "badge " + (ok ? "ok" : "err");
+  slot.body.innerHTML = ok
+    ? renderAnswer(payload)
+    : "<div class='error'>⚠️ " + escapeHtml(payload) + "</div>";
+}
+
+async function runQuery() {
+  const prompt = promptEl.value.trim();
+  if (!prompt) { promptEl.focus(); return; }
+
+  const selected = PROVIDERS.filter(p =>
+    p.local ? useOllamaEl.checked : apiKey(p) !== "");
+
+  if (!selected.length) {
+    statusEl.textContent = "Nessuna chiave configurata: uso le AI legali con copia&apri.";
+    document.getElementById("settings").classList.add("open");
+    sheet.classList.add("open"); scrim.classList.add("open");
+    return;
+  }
+
+  sendBtn.disabled = true;
+  emptyEl.style.display = "none";
+  resultsEl.innerHTML = "";
+  statusEl.textContent = "Interrogo " + selected.length + " AI…";
+
+  // la domanda viene copiata anche per Lexroom e Simpliciter
+  copyPrompt(m => statusEl.textContent = m + " · incollala nelle AI legali");
+
+  let done = 0;
+  selected.forEach(p => {
+    const slot = newCard(p);
+    const t0 = performance.now();
+    ask(p, prompt)
+      .then(ans => fillCard(slot, true, ans, Math.round(performance.now() - t0)))
+      .catch(err => fillCard(slot, false, String(err && err.message || err), 0))
+      .finally(() => {
+        done++;
+        statusEl.textContent = done + "/" + selected.length + " hanno risposto · domanda copiata per le AI legali";
+        if (done === selected.length) sendBtn.disabled = false;
+      });
+  });
+}
+
+sendBtn.addEventListener("click", runQuery);
+promptEl.addEventListener("keydown", e => {
+  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) runQuery();
+});
+</script>
+</body>
+</html>
